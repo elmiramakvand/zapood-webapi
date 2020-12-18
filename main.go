@@ -8,13 +8,11 @@ import (
 
 func main() {
 	db, err := config.GetDB()
-	defer db.Close()
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		r := restapi.RunApi(db)
 		//running
-		r.Run()
-
+		r.Run(":8080")
 	}
 }

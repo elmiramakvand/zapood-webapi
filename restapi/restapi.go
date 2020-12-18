@@ -1,6 +1,9 @@
 package restapi
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -18,34 +21,33 @@ func RunApiOnRouter(r *gin.Engine, DB *gorm.DB) {
 	ManageUserRoutes(r, DB)
 }
 
-// func ManageAuthRoutes(r *gin.Engine, DB *gorm.DB) {
-// 	Handler := NewAuthModel(DB)
-// 	AuthRoute := r.PathPrefix("/api/auth").Subrouter()
-// 	AuthRoute.Methods("POST").Path("/login").HandlerFunc(Handler.Login)
-// }
+func ManageAuthRoutes(r *gin.Engine, DB *gorm.DB) {
+	Handler := NewAuthModel(DB)
+	authGroup := r.Group("/api/auth")
+	{
+		authGroup.POST("login", Handler.Login)
+	}
+}
 
 func ManageUserRoutes(r *gin.Engine, DB *gorm.DB) {
 	Handler := NewUserModel(DB)
 	//	UserRoutes.Use(Authentication) // middleware fuction runs before api actions
-	userGroup := r.Group("/api/User")
+	userGroup := r.Group("/api/User").Use(Authentication())
 	{
 		userGroup.GET("GetAllUsers", Handler.GetAllUsers)
-		userGroup.POST("{operation:(?:add|edit)}", Handler.Operation)
+		userGroup.POST(":operation", Handler.Operation)
 		userGroup.DELETE("delete/:id", Handler.Delete)
 	}
 }
+func Authentication() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if info, logedin := IsLogedin(c); logedin {
+			// We found the token in our map
+			log.Printf("Authenticated user %v\n", info)
+			c.Next()
+		} else {
+			c.AbortWithStatus(http.StatusForbidden)
+		}
+	}
 
-// func Authentication(next http.Handler) http.Handler {
-
-// 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		if info, logedin := IsLogedin(r); logedin {
-// 			// We found the token in our map
-// 			log.Printf("Authenticated user %v\n", info)
-// 			next.ServeHTTP(w, r)
-// 		} else {
-// 			http.Error(w, "شما به این صفحه دسترسی ندارید", http.StatusForbidden)
-// 		}
-// 	})
-
-// 	return h
-// }
+}

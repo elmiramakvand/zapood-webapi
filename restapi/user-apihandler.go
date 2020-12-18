@@ -6,7 +6,6 @@ import (
 	"strings"
 	"zapood/entities"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -42,9 +41,8 @@ func (userModel UserModel) GetAllUsers(c *gin.Context) {
 
 func (userModel UserModel) Operation(c *gin.Context) {
 	operation := c.Params.ByName("operation")
-	if operation == nil {
+	if operation != "add" && operation != "edit" {
 		c.AbortWithStatus(http.StatusNotFound)
-		fmt.Fprintln(w, "operation not found!")
 		return
 	}
 	var user entities.User
@@ -52,22 +50,20 @@ func (userModel UserModel) Operation(c *gin.Context) {
 	if err != nil {
 		fmt.Println(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
-		fmt.Fprintln(w, "could not decode request body by error : %v", err)
 		return
 	}
-
 	switch strings.ToLower(operation) {
 	case "add":
 		result := userModel.DB.Create(&user)
 		if result.Error != nil {
-			fmt.Fprintln(w, "Insert Error : %v", result.Error)
+			fmt.Println("Insert Error :", result.Error)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 	case "edit":
 		result := userModel.DB.Save(&user)
 		if result.Error != nil {
-			fmt.Fprintln(w, "Insert Error : %v", result.Error)
+			fmt.Println("Insert Error :", result.Error)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
@@ -81,40 +77,10 @@ func (userModel UserModel) Delete(c *gin.Context) {
 	var User []entities.User
 	result := userModel.DB.Delete(&User, id)
 	if result.Error != nil {
-		fmt.Fprintln(w, "Delete Error : %v", result.Error)
+		fmt.Println("Delete Error :", result.Error)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id" + id: "is deleted"})
 	return
-}
-
-func CheckJWTToken(w http.ResponseWriter, r *http.Request) bool {
-	cookie, err := r.Cookie("JWTToken")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Println(err)
-		return false
-	}
-	tokenString := cookie.Value
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(toke *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-	if !token.Valid {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Println("token is invalid")
-		return false
-	}
-	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
-			w.WriteHeader(http.StatusUnauthorized)
-			fmt.Println("err: %v", err)
-			return false
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println("err: %v", err)
-		return false
-	}
-	return true
 }
